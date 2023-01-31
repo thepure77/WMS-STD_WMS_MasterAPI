@@ -1,0 +1,364 @@
+﻿using DataAccess;
+using GenAutoNumber;
+using MasterBusiness;
+using MasterDataAPI.Controllers;
+using MasterDataBusiness.ViewModels;
+using MasterDataDataAccess.Models;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
+using System.Linq;
+using System.Text;
+
+namespace MasterDataBusiness
+{
+    public class OwnerTypeService
+    {
+        private MasterDataDbContext db;
+
+        public OwnerTypeService()
+        {
+            db = new MasterDataDbContext();
+        }
+
+        public OwnerTypeService(MasterDataDbContext db)
+        {
+            this.db = db;
+        }
+
+        #region filterOwnerType
+        public actionResultOwnerTypeViewModel filter(SearchOwnerTypeViewModel data)
+        {
+            try
+            {
+                var query = db.MS_OwnerType.AsQueryable();
+                query = query.Where(c => c.IsActive == 1 || c.IsActive == 0 && c.IsDelete == 0);
+
+
+                if (!string.IsNullOrEmpty(data.key))
+                {
+                    query = query.Where(c => c.OwnerType_Id.Contains(data.key)
+                                         || c.OwnerType_Name.Contains(data.key));
+                }
+
+                var Item = new List<MS_OwnerType>();
+                var TotalRow = new List<MS_OwnerType>();
+
+                TotalRow = query.ToList();
+
+
+                if (data.CurrentPage != 0 && data.PerPage != 0)
+                {
+                    query = query.Skip(((data.CurrentPage - 1) * data.PerPage));
+                }
+
+                if (data.PerPage != 0)
+                {
+                    query = query.Take(data.PerPage);
+
+                }
+
+                var num = 1;
+                if (data.PerPage == 100)
+                {
+                    for (int i = 1; i < data.CurrentPage; i++)
+                    {
+                        num = num + 100;
+                    }
+                }
+                if (data.PerPage == 50)
+                {
+                    for (int i = 1; i < data.CurrentPage; i++)
+                    {
+                        num = num + 50;
+                    }
+                }
+                int rowCount = num;
+
+                Item = query.OrderBy(o => o.OwnerType_Index).ToList();
+
+                var result = new List<SearchOwnerTypeViewModel>();
+
+                foreach (var item in Item)
+                {
+                    var resultItem = new SearchOwnerTypeViewModel();
+
+                    resultItem.ownerType_Index = item.OwnerType_Index;
+                    resultItem.ownerType_Id = item.OwnerType_Id;
+                    resultItem.ownerType_Name = item.OwnerType_Name;
+                    resultItem.ownerType_SecondName = item.OwnerType_SecondName;
+                    resultItem.ref_No1 = item.Ref_No1;
+                    resultItem.ref_No2 = item.Ref_No2;
+                    resultItem.ref_No3 = item.Ref_No3;
+                    resultItem.ref_No4 = item.Ref_No4;
+                    resultItem.ref_No5 = item.Ref_No5;
+                    resultItem.remark = item.Remark;
+                    resultItem.udf_1 = item.UDF_1;
+                    resultItem.udf_2 = item.UDF_2;
+                    resultItem.udf_3 = item.UDF_3;
+                    resultItem.udf_4 = item.UDF_4;
+                    resultItem.udf_5 = item.UDF_5;
+                    resultItem.isActive = item.IsActive;
+                    resultItem.isDelete = item.IsDelete;
+                    resultItem.isSystem = item.IsSystem;
+                    resultItem.status_Id = item.Status_Id;
+                    resultItem.create_By = item.Create_By;
+                    resultItem.create_Date = item.Create_Date;
+                    resultItem.update_By = item.Update_By;
+                    resultItem.update_Date = item.Update_Date;
+                    resultItem.cancel_By = item.Cancel_By;
+                    resultItem.cancel_Date = item.Cancel_Date;
+                    resultItem.row_Count = rowCount;
+                    result.Add(resultItem);
+                    rowCount++;
+                }
+
+                var count = TotalRow.Count;
+
+                var actionResultOwnerTypeViewModel = new actionResultOwnerTypeViewModel();
+                actionResultOwnerTypeViewModel.itemsOwnerType = result.ToList();
+                actionResultOwnerTypeViewModel.pagination = new Pagination() { TotalRow = count, CurrentPage = data.CurrentPage, PerPage = data.PerPage, Key = data.key };
+
+                return actionResultOwnerTypeViewModel;
+            }
+
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+        #endregion
+
+        #region SaveChanges
+        public String SaveChanges(OwnerTypeViewModel data)
+        {
+            String State = "Start";
+            String msglog = "";
+            var olog = new logtxt();
+
+            try
+            {
+
+                var OwnerTypeOld = db.MS_OwnerType.Find(data.ownerType_Index);
+
+                if (OwnerTypeOld == null)
+                {
+                    if (!string.IsNullOrEmpty(data.ownerType_Id))
+                    {
+                        var query = db.MS_OwnerType.FirstOrDefault(c => c.OwnerType_Id == data.ownerType_Id && c.IsActive == 1);
+                        if (query != null)
+                        {
+                            return "Fail";
+                        }
+                    }
+                    if (string.IsNullOrEmpty(data.ownerType_Id))
+                    {
+                        data.ownerType_Id = "OwnerType_Id".genAutonumber();
+                        int i = 1;
+                        while (i > 0)
+                        {
+                            var query = db.MS_OwnerType.FirstOrDefault(c => c.OwnerType_Id == data.ownerType_Id && c.IsActive == 1);
+                            if (query != null)
+                            {
+                                if (query.OwnerType_Id == data.ownerType_Id)
+                                {
+                                    data.ownerType_Id = "OwnerType_Id".genAutonumber();
+                                }
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                    }
+
+                    MS_OwnerType Model = new MS_OwnerType();
+
+                    Model.OwnerType_Index = Guid.NewGuid();
+                    Model.OwnerType_Id = data.ownerType_Id;
+                    Model.OwnerType_Name = data.ownerType_Name;
+                    Model.OwnerType_SecondName = data.ownerType_SecondName;
+                    Model.Ref_No1 = data.ref_No1;
+                    Model.Ref_No2 = data.ref_No2;
+                    Model.Ref_No3 = data.ref_No3;
+                    Model.Ref_No4 = data.ref_No4;
+                    Model.Ref_No5 = data.ref_No5;
+                    Model.Remark = data.remark;
+                    Model.UDF_1 = data.udf_1;
+                    Model.UDF_2 = data.udf_2;
+                    Model.UDF_3 = data.udf_3;
+                    Model.UDF_4 = data.udf_4;
+                    Model.UDF_5 = data.udf_5;
+                    Model.IsActive = Convert.ToInt32(data.isActive);
+                    Model.IsDelete = 0;
+                    Model.IsSystem = 0;
+                    Model.Status_Id = 0;
+                    Model.Create_By = data.create_By;
+                    Model.Create_Date = DateTime.Now;
+
+                    db.MS_OwnerType.Add(Model);
+                }
+                else
+                {
+                    if (string.IsNullOrEmpty(data.ownerType_Id))
+                    {
+                        if (OwnerTypeOld.OwnerType_Id != "")
+                        {
+                            data.ownerType_Id = OwnerTypeOld.OwnerType_Id;
+                        }
+                    }
+                    else
+                    {
+                        if (OwnerTypeOld.OwnerType_Id != data.ownerType_Id)
+                        {
+                            var query = db.MS_OwnerType.FirstOrDefault(c => c.OwnerType_Id == data.ownerType_Id && c.IsActive == 1);
+                            if (query != null)
+                            {
+                                return "Fail";
+                            }
+                        }
+                        else
+                        {
+                            data.ownerType_Id = OwnerTypeOld.OwnerType_Id;
+                        }
+                    }
+
+                    OwnerTypeOld.OwnerType_Id = data.ownerType_Id;
+                    OwnerTypeOld.OwnerType_Name = data.ownerType_Name;
+                    OwnerTypeOld.OwnerType_SecondName = data.ownerType_SecondName;
+                    OwnerTypeOld.Ref_No1 = data.ref_No1;
+                    OwnerTypeOld.Ref_No2 = data.ref_No2;
+                    OwnerTypeOld.Ref_No3 = data.ref_No3;
+                    OwnerTypeOld.Ref_No4 = data.ref_No4;
+                    OwnerTypeOld.Ref_No5 = data.ref_No5;
+                    OwnerTypeOld.Remark = data.remark;
+                    OwnerTypeOld.UDF_1 = data.udf_1;
+                    OwnerTypeOld.UDF_2 = data.udf_2;
+                    OwnerTypeOld.UDF_3 = data.udf_3;
+                    OwnerTypeOld.UDF_4 = data.udf_4;
+                    OwnerTypeOld.UDF_5 = data.udf_5;
+                    OwnerTypeOld.IsActive = Convert.ToInt32(data.isActive);
+                    OwnerTypeOld.Update_By = data.create_By;
+                    OwnerTypeOld.Update_Date = DateTime.Now;
+                }
+
+                var transactionx = db.Database.BeginTransaction(IsolationLevel.Serializable);
+                try
+                {
+                    db.SaveChanges();
+                    transactionx.Commit();
+                }
+
+                catch (Exception exy)
+                {
+                    msglog = State + " ex Rollback " + exy.Message.ToString();
+                    olog.logging("SaveOwnerType", msglog);
+                    transactionx.Rollback();
+
+                    throw exy;
+                }
+
+                return "Done"; ;
+
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+        #endregion
+
+        #region find
+        public OwnerTypeViewModel find(Guid id)
+        {
+            try
+            {
+
+                var queryResult = db.MS_OwnerType.Where(c => c.OwnerType_Index == id).FirstOrDefault();
+
+                var result = new OwnerTypeViewModel();
+
+
+                result.ownerType_Index = queryResult.OwnerType_Index;
+                result.ownerType_Id = queryResult.OwnerType_Id;
+                result.ownerType_Name = queryResult.OwnerType_Name;
+                result.ownerType_SecondName = queryResult.OwnerType_SecondName;
+                result.ref_No1 = queryResult.Ref_No1;
+                result.ref_No2 = queryResult.Ref_No2;
+                result.ref_No3 = queryResult.Ref_No3;
+                result.ref_No4 = queryResult.Ref_No4;
+                result.ref_No5 = queryResult.Ref_No5;
+                result.remark = queryResult.Remark;
+                result.udf_1 = queryResult.UDF_1;
+                result.udf_2 = queryResult.UDF_2;
+                result.udf_3 = queryResult.UDF_3;
+                result.udf_4 = queryResult.UDF_4;
+                result.udf_5 = queryResult.UDF_5;
+                result.isActive = queryResult.IsActive;
+                result.isDelete = queryResult.IsDelete;
+                result.isSystem = queryResult.IsSystem;
+                result.status_Id = queryResult.Status_Id;
+                result.create_By = queryResult.Create_By;
+                result.create_Date = queryResult.Create_Date;
+                result.update_By = queryResult.Update_By;
+                result.update_Date = queryResult.Update_Date;
+                result.cancel_By = queryResult.Cancel_By;
+                result.cancel_Date = queryResult.Cancel_Date;
+
+                return result;
+
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+        #endregion
+
+        #region getDelete
+        public Boolean getDelete(OwnerTypeViewModel data)
+        {
+            String State = "Start";
+            String msglog = "";
+            var olog = new logtxt();
+
+            try
+            {
+                var warehouse = db.MS_OwnerType.Find(data.ownerType_Index);
+
+                if (warehouse != null)
+                {
+                    warehouse.IsActive = 0;
+                    warehouse.IsDelete = 1;
+
+
+                    var transaction = db.Database.BeginTransaction(IsolationLevel.Serializable);
+                    try
+                    {
+                        db.SaveChanges();
+                        transaction.Commit();
+                        return true;
+                    }
+
+                    catch (Exception exy)
+                    {
+                        msglog = State + " ex Rollback " + exy.Message.ToString();
+                        olog.logging("DeleteOwnerType", msglog);
+                        transaction.Rollback();
+                        throw exy;
+                    }
+
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+        #endregion
+    }
+}
